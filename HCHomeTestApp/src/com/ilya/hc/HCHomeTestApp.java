@@ -16,10 +16,16 @@ public class HCHomeTestApp {
 	private static String login = "admin";
 	private static String password = "AdminPassword";
 
+	/**
+	 * Entry point
+	 * 
+	 * @param args - application arguments
+	 */
 	public static void main(String[] args) {
 		readParams(args);
 
-		HTNode node = new HTNode(login, password); 
+		HTNode node = new HTNode(login, password);
+		node.doTell();
 	}
 	
 	/**
