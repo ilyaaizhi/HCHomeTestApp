@@ -1,5 +1,6 @@
 package com.ilya.hc.node;
 
+import java.io.IOException;
 import java.net.Socket;
 import java.util.Map;
 
@@ -12,15 +13,16 @@ import com.hazelcast.config.InterfacesConfig;
 import com.hazelcast.config.NetworkConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
+import com.ilya.hc.exception.HTNodeInitException;
 
 public class HTNode {
 
 	private String login;
 	private String password;
 	private String address;
-	private int port;
 	private String name;
 	private String hazelcastInstanceName;
+	private int port;
 	private HazelcastInstance instance;	
 
 	/**
@@ -33,16 +35,18 @@ public class HTNode {
 	 * @param password for Hazelcast instance
 	 * @param address of Hazelcast instance
 	 * @param port of Hazelcast instance
-	 * @name name of the node
+	 * @param name of the instance
+	 * @throws HTNodeInitException 
 	 */
-	public HTNode(String login, String password, String address, String nodeName, String port) {
+	public HTNode(String login, String password, String address, String nodeName, String port) throws HTNodeInitException {
 		this.login = login;
 		this.password = password;
 		this.address = address;
 		this.name = nodeName;
 		this.port = Integer.parseInt(port);
 		this.hazelcastInstanceName = "HomeTest";
-		getHazelcastInstance();
+		initHazelcastInstance();
+		
 	}
 
 	/**
@@ -73,19 +77,17 @@ public class HTNode {
 	 * Initialize {@link #instance}
 	 * Tries to connect to existing Hazelcast instance if {@link #address}:{@link #port} is busy
 	 * Otherwise start new local Hazelcast node
+	 * @throws HTNodeInitException 
 	 * 
 	 */
-	private void getHazelcastInstance() {
+	private void initHazelcastInstance() throws HTNodeInitException {
 		try {
 			// checking whether port is open. It's few seconds faster than trying to join right away
 			Socket s = new Socket(address, port);
 			s.close();
-			try {
-				connectToHazelcastInstance();
-			} catch (Exception e) {
-				System.err.println("Port " + port + " is busy with something else. Can't start application.");
-			}
-		} catch (Exception e) {
+
+			connectToHazelcastInstance();
+		} catch (IOException e) {
 			launchHazelcastInstance(false);
 		}
 	}
@@ -94,8 +96,9 @@ public class HTNode {
 	 * Connects to Hazelcast Instance and @throws IllegalStateException in case it can't find it  
 	 * Uses {@link #address}, {@link #port}, {@link #login}, {@link #password}
 	 * 
+	 * @throws HTNodeInitException when can't connect to Hazelcast instance
 	 */
-	private void connectToHazelcastInstance() throws IllegalStateException {
+	private void connectToHazelcastInstance() throws HTNodeInitException {
 		ClientConfig config = new ClientConfig();
 
 		ClientNetworkConfig networkConfig = config.getNetworkConfig();
@@ -105,7 +108,11 @@ public class HTNode {
 		groupConfig.setName(login);
 		groupConfig.setPassword(password);
 
-		instance = HazelcastClient.newHazelcastClient(config);		
+		try {
+			instance = HazelcastClient.newHazelcastClient(config);					
+		} catch (Exception e) {
+			throw new HTNodeInitException("Can't connect to Hazelcast instance. Check that " + address + ":" + port + " is not busy with something else.");
+		}
 	}
 
 	/**
@@ -113,10 +120,11 @@ public class HTNode {
 	 * Uses {@link #address}, {@link #port}, {@link #login}, {@link #password}
 	 * 
 	 * @param portAutoIncrement allow to auto-increment port if {@link #port} is busy  
+	 * @throws HTNodeInitException when can't start new Hazelcast instance
 	 */
-	private void launchHazelcastInstance(boolean portAutoIncrement) {
+	private void launchHazelcastInstance(boolean portAutoIncrement) throws HTNodeInitException {
 		Config config = new Config(hazelcastInstanceName);
-
+		
 		NetworkConfig networkConfig = config.getNetworkConfig();
 		
 		InterfacesConfig interfacesConfig = networkConfig.getInterfaces(); 
@@ -129,7 +137,11 @@ public class HTNode {
 		groupConfig.setName(login);
 		groupConfig.setPassword(password);
 
-		instance = Hazelcast.newHazelcastInstance(config);
+		try {
+			instance = Hazelcast.newHazelcastInstance(config);			
+		} catch (Exception e) {
+			throw new HTNodeInitException("Can't start new Hazelcast instance.");
+		}
 	}
 
 }

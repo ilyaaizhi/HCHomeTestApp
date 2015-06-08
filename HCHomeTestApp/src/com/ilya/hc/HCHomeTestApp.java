@@ -1,5 +1,6 @@
 package com.ilya.hc;
 
+import com.ilya.hc.exception.HTNodeInitException;
 import com.ilya.hc.node.HTNode;
 
 /**
@@ -20,6 +21,7 @@ public class HCHomeTestApp {
 	private static String address = "127.0.0.1";
 	private static String port = "7775";
 	private static boolean dieYong = false;
+	private static boolean disableHazelcastLogging = false;
 	private static String name = "";
 
 	/**
@@ -29,13 +31,19 @@ public class HCHomeTestApp {
 	 */
 	public static void main(String[] args) {
 		readParams(args);
+		if (disableHazelcastLogging) System.setProperty("hazelcast.logging.type", "none");
 		
-		HTNode instance = new HTNode(login, password, address, name, port);
-		
-		// Simulation of instance crash right after Hazelcast instance initialization
-		if (dieYong) System.exit(1);
-		
-		instance.doTell();
+		try {
+			HTNode instance = new HTNode(login, password, address, name, port);
+			
+			// Undocumented simulation of instance crash right after Hazelcast instance initialization
+			if (dieYong) System.exit(1);
+			
+			instance.doTell();
+		} catch (HTNodeInitException e) {
+			System.err.println("Can't start application, because can't inialize Hazelcast instance.");
+			System.err.println(e.getMessage());
+		}
 	}
 	
 	/**
@@ -54,17 +62,19 @@ public class HCHomeTestApp {
 					address = args[++i];
 				} else if (args[i].equals("-port")) {
 					port = args[++i];
-				} else if (args[i].equals("-dieYong")) {
-					dieYong = true;
 				} else if (args[i].equals("-name")) {
 					name = args[++i];
+				} else if (args[i].equals("-dieYong")) {
+					dieYong = true;
+				} else if (args[i].equals("-disableHazelcastLogging")) {
+					disableHazelcastLogging = true;
 				} else {
 					throw new Exception("Invalid argumet: " + args[i]);
 				}
 			}
 		} catch (Exception e) {
 			System.err.println(e);
-			System.err.println("Usage: java -jar HCHomeTestApp.jar [-login <login>] [-password <password>] [-address <ip address>] [-port <port number>]");
+			System.err.println("Usage: java -jar HCHomeTestApp.jar [-login <login>] [-password <password>] [-address <ip address>] [-port <port number>] [-disableHazelcastLogging]");
 		}
 	}
 
